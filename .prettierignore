@@ -1,0 +1,17 @@
+# Dependency directory
+node_modules
+
+# Build output directory
+dist
+build
+
+# Vite, React, and Electron specific files and folders
+.vite
+.vitepress
+.electron
+public
+
+# Various configuration files
+*.config.js
+vite.config.js
+electron.config.js

@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#_root {
+  @apply h-full w-full bg-slate-900 text-slate-100;
+  font-family: 'Lato', sans-serif;
+}
+
+.full-size {
+  @apply h-full w-full;
+}
+
+.center-row {
+  @apply flex items-center;
+}
+
+.center-col {
+  @apply flex flex-col items-center;
+}
+
+.center-content {
+  @apply flex flex-col items-center justify-center;
+}
