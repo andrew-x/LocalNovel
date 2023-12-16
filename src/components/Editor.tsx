@@ -1,12 +1,12 @@
 import { useToast } from '@/hooks/useToast'
-import mainApi from '@/services/main'
 import cn from '@/util/classnames'
 import { logError } from '@/util/logger'
+import { trpc } from '@/util/trpc'
 import { Button, TextInput } from '@mantine/core'
 import { useDebouncedState } from '@mantine/hooks'
 import { RichTextEditor } from '@mantine/tiptap'
 import Placeholder from '@tiptap/extension-placeholder'
-import { useEditor } from '@tiptap/react'
+import { JSONContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { useEffect } from 'react'
 
@@ -17,25 +17,29 @@ export function Editor({
 }: {
   className?: string
   storyId: string
-  initialContent: string
+  initialContent: any
 }) {
   const { error } = useToast()
-  const [updateContent] = mainApi.useUpdateContentMutation()
-  const [value, setValue] = useDebouncedState(initialContent, 1000)
+  const utils = trpc.useUtils()
+  const { mutate: updateContent } = trpc.story.updateContent.useMutation({
+    onSuccess() {
+      utils.story.invalidate()
+    },
+    onError(err) {
+      logError(err)
+      error()
+    },
+  })
+  const [value, setValue] = useDebouncedState<JSONContent>(initialContent, 1000)
 
   useEffect(() => {
     updateContent({ id: storyId, content: value })
-      .unwrap()
-      .catch((err) => {
-        logError(err)
-        error('Could not save story')
-      })
   }, [value])
 
   const editor = useEditor({
-    content: initialContent,
+    content: value,
     onUpdate: ({ editor }) => {
-      setValue(editor.getHTML())
+      setValue(editor.getJSON())
     },
     extensions: [
       StarterKit,

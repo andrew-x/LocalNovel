@@ -1,17 +1,10 @@
 import { exec } from 'child_process'
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow } from 'electron'
+import { createIPCHandler } from 'electron-trpc/main'
 import fs from 'fs-extra'
 import path from 'path'
-import { wipeData } from './handlers/admin.main'
-import { loadContent, updateContent } from './handlers/content.main'
-import {
-  createStory,
-  deleteStory,
-  getStories,
-  getStory,
-  updateStory,
-} from './handlers/story.main'
-import { DATA_PATH, MANIFEST_PATH } from './util/constants.main'
+import { appRouter } from './api'
+import { DATA_PATH } from './util/constants.main'
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
@@ -19,14 +12,6 @@ if (require('electron-squirrel-startup')) {
 }
 
 fs.ensureDirSync(DATA_PATH)
-if (!fs.existsSync(MANIFEST_PATH)) {
-  fs.writeJSONSync(MANIFEST_PATH, {
-    stories: {},
-    config: {
-      apiURL: 'http://localhost:5000/api',
-    },
-  })
-}
 
 async function runMigrations() {
   return new Promise<void>((resolve, reject) => {
@@ -70,35 +55,8 @@ const createWindow = () => {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', async () => {
-  createWindow()
-  ipcMain.handle('open-app-folder', async () => {
-    shell.openPath(app.getPath('userData'))
-  })
-  ipcMain.handle('get-stories', async () => {
-    return getStories()
-  })
-  ipcMain.handle('get-story', async (_, id: string) => {
-    return getStory(id)
-  })
-  ipcMain.handle('create-story', async (_, title: string, tags: string[]) => {
-    return createStory(title, tags)
-  })
-  ipcMain.handle('update-story', async (_, story: any) => {
-    return updateStory(story)
-  })
-  ipcMain.handle('delete-story', async (_, id: string) => {
-    return deleteStory(id)
-  })
-  ipcMain.handle('load-content', async (_, id: string) => {
-    return loadContent(id)
-  })
-  ipcMain.handle('update-content', async (_, id: string, content: string) => {
-    return updateContent(id, content)
-  })
-
-  ipcMain.handle('wipe-data', async () => {
-    return wipeData()
-  })
+  const mainWindow = createWindow()
+  createIPCHandler({ router: appRouter, windows: [mainWindow] })
 })
 
 // Quit when all windows are closed, except on macOS. There, it's common

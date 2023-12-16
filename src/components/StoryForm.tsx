@@ -1,8 +1,8 @@
 import { useToast } from '@/hooks/useToast'
 import useZodForm from '@/hooks/useZodForm'
-import mainApi from '@/services/main'
 import { Story } from '@/types/data'
 import { logError } from '@/util/logger'
+import { trpc } from '@/util/trpc'
 import { Button, TextInput } from '@mantine/core'
 import { modals } from '@mantine/modals'
 import { useNavigate } from 'react-router-dom'
@@ -15,20 +15,56 @@ export default function StoryForm({
   className?: string
   story?: Story
 }) {
-  const { error } = useToast()
+  const { error, success } = useToast()
   const navigate = useNavigate()
 
-  const [create] = mainApi.useCreateStoryMutation()
-  const [update] = mainApi.useUpdateStoryMutation()
-  const [deleteStory, { isLoading: isDeleting }] =
-    mainApi.useDeleteStoryMutation()
+  const utils = trpc.useUtils()
+  const { mutate: create, isLoading: isCreating } =
+    trpc.story.createStory.useMutation({
+      onSuccess(story) {
+        success('Story created')
+        utils.story.getStories.invalidate()
+        navigate(`/story/${story.id}`)
+        modals.closeAll()
+      },
+      onError(err) {
+        logError(err)
+        error()
+      },
+    })
+  const { mutate: update, isLoading: isUpdating } =
+    trpc.story.updateStory.useMutation({
+      onSuccess(story) {
+        success('Story updated')
+        utils.story.getStories.invalidate()
+        utils.story.getStory.invalidate({ id: story.id })
+        modals.closeAll()
+      },
+      onError(err) {
+        logError(err)
+        error()
+      },
+    })
+  const { mutate: deleteStory, isLoading: isDeleting } =
+    trpc.story.deleteStory.useMutation({
+      onSuccess(id) {
+        success('Story deleted')
+        utils.story.getStories.invalidate()
+        utils.story.getStory.invalidate({ id })
+        navigate('/')
+        modals.closeAll()
+      },
+      onError(err) {
+        logError(err)
+        error()
+      },
+    })
 
   const {
     register,
-    formState: { errors, isLoading },
+    formState: { errors },
     handleSubmit,
     reset,
-    control,
   } = useZodForm({
     schema: z.object({
       title: z.string().min(1, 'Name is required'),
@@ -40,38 +76,18 @@ export default function StoryForm({
     },
   })
 
-  const onSubmit = handleSubmit(async ({ title, tags }) => {
-    try {
-      const next: Story = story
-        ? await update({ id: story.id, title, tags }).unwrap()
-        : await create({
-            title,
-            tags,
-          }).unwrap()
-      modals.closeAll()
-      navigate(`/story/${next?.id || ''}`)
-    } catch (err) {
-      logError(err)
+  const onSubmit = handleSubmit(async ({ title }) => {
+    if (story) {
+      update({ id: story.id, title })
+    } else {
+      create({ title })
     }
   })
-
-  async function onDelete() {
-    try {
-      if (story) {
-        await deleteStory(story.id).unwrap()
-      }
-      modals.closeAll()
-      navigate('/')
-    } catch (err) {
-      logError(err)
-      error()
-    }
-  }
 
   function onClick() {
     reset()
     modals.open({
-      title: 'Create Video',
+      title: story ? 'Edit Story' : 'Create Story',
       children: (
         <form className="flex flex-col gap-y-4" onSubmit={onSubmit}>
           <TextInput
@@ -81,7 +97,11 @@ export default function StoryForm({
             required
             {...register('title')}
           />
-          <Button className="mx-auto" type="submit" loading={isLoading}>
+          <Button
+            className="mx-auto"
+            type="submit"
+            loading={isCreating || isUpdating}
+          >
             {story ? 'Save' : 'Create'}
           </Button>
           {story && (
@@ -91,7 +111,13 @@ export default function StoryForm({
               color="red"
               size="compact-xs"
               loading={isDeleting}
-              onClick={onDelete}
+              onClick={() => {
+                if (story) {
+                  deleteStory({
+                    id: story.id,
+                  })
+                }
+              }}
             >
               Delete
             </Button>
@@ -102,7 +128,12 @@ export default function StoryForm({
   }
 
   return (
-    <Button className={className} variant="light" onClick={onClick}>
+    <Button
+      className={className}
+      variant={story ? 'outline' : 'light'}
+      color={story ? 'gray' : undefined}
+      onClick={onClick}
+    >
       {story ? 'Edit' : 'Create Story'}
     </Button>
   )
