@@ -3,6 +3,9 @@ export type Story = {
   title: string
   tags: string[]
 
+  plot: string // for ai
+  style: string // for ai
+
   createdAt: number
   updatedAt: number
 }

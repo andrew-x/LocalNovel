@@ -1,4 +1,5 @@
 import { Story } from '@/types/data'
+import { EMPTY_CONTENT } from '@/util/constants.render'
 import dayjs from 'dayjs'
 import {
   ensureFileSync,
@@ -7,6 +8,7 @@ import {
   removeSync,
   writeJSONSync,
 } from 'fs-extra'
+import pickBy from 'lodash/pickBy'
 import uniqid from 'uniqid'
 import { z } from 'zod'
 import {
@@ -38,6 +40,9 @@ const storyRouter = router({
         title,
         tags: [],
 
+        plot: '',
+        style: '',
+
         updatedAt: dayjs().unix(),
         createdAt: dayjs().unix(),
       }
@@ -45,14 +50,29 @@ const storyRouter = router({
       return story
     }),
   updateStory: procedure
-    .input(z.object({ id: z.string(), title: z.string() }))
-    .mutation(({ input: { id, title } }) => {
+    .input(
+      z.object({
+        id: z.string(),
+        title: z.string().optional(),
+        plot: z.string().optional(),
+        style: z.string().optional(),
+      })
+    )
+    .mutation(({ input: { id, title, plot, style } }) => {
+      const current = readManifest(`stories.${id}`) as Story
+
       const story: Partial<Story> = {
         id,
         title,
+        plot,
+        style,
         updatedAt: dayjs().unix(),
       }
-      const updated = updateManifest(`stories.${id}`, story)
+
+      const updated = updateManifest(`stories.${id}`, {
+        ...current,
+        ...pickBy(story, (value) => value !== undefined),
+      })
       return updated.stories[id]
     }),
   deleteStory: procedure
@@ -67,11 +87,8 @@ const storyRouter = router({
     .input(z.object({ id: z.string() }))
     .query(({ input: { id } }) => {
       if (!existsSync(getStoryPath(id))) {
-        writeJSONSync(getStoryPath(id), {
-          type: 'doc',
-          content: [],
-        })
-        return {}
+        writeJSONSync(getStoryPath(id), EMPTY_CONTENT)
+        return EMPTY_CONTENT
       } else {
         const content = readJSONSync(getStoryPath(id))
         return content

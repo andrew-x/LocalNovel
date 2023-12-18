@@ -68,12 +68,7 @@ export default function StoryForm({
   } = useZodForm({
     schema: z.object({
       title: z.string().min(1, 'Name is required'),
-      tags: z.array(z.string()),
     }),
-    defaultValues: {
-      title: story?.title || '',
-      tags: story?.tags || [],
-    },
   })
 
   const onSubmit = handleSubmit(async ({ title }) => {

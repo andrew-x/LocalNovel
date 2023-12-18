@@ -2,13 +2,13 @@ import { useToast } from '@/hooks/useToast'
 import cn from '@/util/classnames'
 import { logError } from '@/util/logger'
 import { trpc } from '@/util/trpc'
-import { Button, TextInput } from '@mantine/core'
 import { useDebouncedState } from '@mantine/hooks'
 import { RichTextEditor } from '@mantine/tiptap'
 import Placeholder from '@tiptap/extension-placeholder'
 import { JSONContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import Generate from './Generate'
 
 export function Editor({
   className,
@@ -31,6 +31,7 @@ export function Editor({
     },
   })
   const [value, setValue] = useDebouncedState<JSONContent>(initialContent, 1000)
+  const [text, setText] = useState<string>('')
 
   useEffect(() => {
     updateContent({ id: storyId, content: value })
@@ -40,6 +41,7 @@ export function Editor({
     content: value,
     onUpdate: ({ editor }) => {
       setValue(editor.getJSON())
+      setText(editor.getText())
     },
     extensions: [
       StarterKit,
@@ -57,10 +59,13 @@ export function Editor({
       >
         <RichTextEditor.Content />
       </RichTextEditor>
-      <div className="w-full center-row gap-x-2 sticky bottom-0 z-10 py-2 bg-slate-900">
-        <TextInput className="grow" placeholder="Instructions" />
-        <Button variant="light">Generate</Button>
-      </div>
+      <Generate
+        storyId={storyId}
+        content={text}
+        onGenerate={(text) => {
+          editor?.commands.insertContent(text)
+        }}
+      />
     </div>
   )
 }

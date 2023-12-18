@@ -15,7 +15,9 @@ export default function Home() {
 
   const show = useMemo(
     () =>
-      (stories || []).filter(({ title }) => title.includes(debouncedSearch)),
+      (stories || []).filter(
+        ({ title }) => title && title.includes(debouncedSearch)
+      ),
     [stories, debouncedSearch]
   )
 
